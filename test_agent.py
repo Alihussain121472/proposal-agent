@@ -100,5 +100,79 @@ class TestProposalStrategist(unittest.TestCase):
         self.assertLess(res.variation_a.word_count, 175)
         self.assertLess(res.variation_b.word_count, 175)
 
+    def test_academic_bachelors_education_generation(self):
+        """Test Bachelor's level education proposal generation and verify 7 sections."""
+        from presets import ACADEMIC_PRESETS
+        from proposal_agent.models import AcademicLevel, AcademicProposalType
+        preset = ACADEMIC_PRESETS["1"]["input"]
+        res = self.agent.generate_academic(preset, provider="offline")
+
+        self.assertEqual(res.academic_level, AcademicLevel.BACHELORS)
+        self.assertEqual(res.proposal_type, AcademicProposalType.EDUCATION)
+        # Verify 7 required sections
+        self.assertTrue(len(res.title) > 10)
+        self.assertTrue(len(res.introduction_background) > 50)
+        self.assertTrue(len(res.problem_statement) > 40)
+        self.assertGreaterEqual(len(res.objectives), 3)
+        self.assertTrue(len(res.methodology_approach) > 50)
+        self.assertTrue(len(res.expected_outcomes_benefits) > 50)
+        self.assertTrue(len(res.conclusion) > 40)
+        self.assertIn("Undergraduate", res.level_insights)
+
+    def test_academic_masters_business_generation(self):
+        """Test Master's level business proposal generation."""
+        from presets import ACADEMIC_PRESETS
+        from proposal_agent.models import AcademicLevel, AcademicProposalType
+        preset = ACADEMIC_PRESETS["2"]["input"]
+        res = self.agent.generate_academic(preset, provider="offline")
+
+        self.assertEqual(res.academic_level, AcademicLevel.MASTERS)
+        self.assertEqual(res.proposal_type, AcademicProposalType.BUSINESS)
+        self.assertTrue(len(res.title) > 10)
+        self.assertIn("Postgraduate", res.level_insights)
+        self.assertGreater(res.word_count, 150)
+
+    def test_academic_phd_social_media_generation(self):
+        """Test PhD level social media proposal generation."""
+        from presets import ACADEMIC_PRESETS
+        from proposal_agent.models import AcademicLevel, AcademicProposalType
+        preset = ACADEMIC_PRESETS["3"]["input"]
+        res = self.agent.generate_academic(preset, provider="offline")
+
+        self.assertEqual(res.academic_level, AcademicLevel.PHD)
+        self.assertEqual(res.proposal_type, AcademicProposalType.SOCIAL_MEDIA)
+        self.assertTrue("Epistemic" in res.title or "Algorithmic" in res.title)
+        self.assertIn("Doctoral", res.level_insights)
+        self.assertGreater(res.word_count, 200)
+
+    def test_academic_depth_and_tone_calibration(self):
+        """Test that Bachelor's and PhD generate distinct tones and complexity on the same topic."""
+        from proposal_agent.models import AcademicLevel, AcademicProposalType, AcademicProposalInput
+        topic = "Artificial Intelligence in University Student Advising"
+        purpose = "Evaluate how automated AI bots impact academic advising efficiency and student retention."
+        
+        bachelor_inp = AcademicProposalInput(
+            academic_level=AcademicLevel.BACHELORS,
+            proposal_type=AcademicProposalType.EDUCATION,
+            topic=topic,
+            purpose=purpose
+        )
+        phd_inp = AcademicProposalInput(
+            academic_level=AcademicLevel.PHD,
+            proposal_type=AcademicProposalType.EDUCATION,
+            topic=topic,
+            purpose=purpose
+        )
+
+        res_bachelor = self.agent.generate_academic(bachelor_inp, provider="offline")
+        res_phd = self.agent.generate_academic(phd_inp, provider="offline")
+
+        # PhD should have scholarly/epistemological vocabulary
+        self.assertIn("epistemological", res_phd.introduction_background.lower())
+        # Bachelor's should have foundational/practical vocabulary
+        self.assertIn("practical", res_bachelor.introduction_background.lower())
+        self.assertNotEqual(res_bachelor.title, res_phd.title)
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+

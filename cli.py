@@ -18,33 +18,105 @@ from rich.table import Table
 from rich.markdown import Markdown
 
 from proposal_agent import (
-    ProposalStrategistAgent, ProposalInput, Platform, Tone
+    ProposalStrategistAgent, ProposalInput, Platform, Tone,
+    AcademicLevel, AcademicProposalType, AcademicProposalInput
 )
-from presets import PRESETS
+from presets import PRESETS, ACADEMIC_PRESETS
 
 console = Console(force_terminal=True)
 
 def display_banner():
     banner = """[bold cyan]╔══════════════════════════════════════════════════════════════════════╗
-║        SENIOR FREELANCE PROPOSAL STRATEGIST AGENT                    ║
-║   "Clients hire who makes them feel most understood & confident"     ║
+║        PROPOSAL STRATEGIST & ACADEMIC PROPOSAL AGENT                 ║
+║   Freelance ($2M+ Winning Pitch) & Academic (Bachelor's, Master's, PhD)║
 ╚══════════════════════════════════════════════════════════════════════╝[/bold cyan]"""
     console.print(banner)
 
-def run_interactive():
-    display_banner()
-    agent = ProposalStrategistAgent()
+def run_academic_wizard(agent: ProposalStrategistAgent, provider: str = "offline"):
+    console.print("\n[bold cyan]╔══════════════════════════════════════════════════════════════════╗[/bold cyan]")
+    console.print("[bold cyan]║      ACADEMIC & PROFESSIONAL PROPOSAL WRITING ASSISTANT          ║[/bold cyan]")
+    console.print("[bold cyan]╚══════════════════════════════════════════════════════════════════╝[/bold cyan]")
 
+    console.print("\n[yellow]Choose an academic mode:[/yellow]")
+    console.print("  [bold green][1][/bold green] Load Curated Preset Scenario")
+    console.print("  [bold green][2][/bold green] Follow 4-Step Interactive Wizard")
+    sub_choice = Prompt.ask("Select option", choices=["1", "2"], default="1")
+
+    if sub_choice == "1":
+        console.print("\n[bold]Select an Academic Preset Scenario:[/bold]")
+        for k, v in ACADEMIC_PRESETS.items():
+            console.print(f"  [cyan]{k}[/cyan]: [bold]{v['title']}[/bold] - [dim]{v['description']}[/dim]")
+        
+        preset_choice = Prompt.ask("Choose preset", choices=list(ACADEMIC_PRESETS.keys()), default="1")
+        inp = ACADEMIC_PRESETS[preset_choice]["input"]
+    else:
+        # STEP 1 — ASK FOR ACADEMIC LEVEL
+        console.print("\n[bold cyan]STEP 1 — ASK FOR ACADEMIC LEVEL[/bold cyan]")
+        console.print("  [bold green][1][/bold green] Bachelor's  (clear, simple, foundational language)")
+        console.print("  [bold green][2][/bold green] Master's    (analytical, structured, research-aware language)")
+        console.print("  [bold green][3][/bold green] PhD         (advanced, scholarly, gap-focused, methodology-rich)")
+        lvl_choice = Prompt.ask("What is your academic level?", choices=["1", "2", "3"], default="2")
+        level_map = {"1": AcademicLevel.BACHELORS, "2": AcademicLevel.MASTERS, "3": AcademicLevel.PHD}
+        academic_level = level_map[lvl_choice]
+
+        # STEP 2 — ASK FOR PROPOSAL TYPE
+        console.print("\n[bold cyan]STEP 2 — ASK FOR PROPOSAL TYPE[/bold cyan]")
+        console.print("  [bold green][1][/bold green] Education Proposal")
+        console.print("  [bold green][2][/bold green] Business Proposal")
+        console.print("  [bold green][3][/bold green] Social Media Proposal")
+        type_choice = Prompt.ask("What type of proposal would you like to write?", choices=["1", "2", "3"], default="1")
+        type_map = {
+            "1": AcademicProposalType.EDUCATION,
+            "2": AcademicProposalType.BUSINESS,
+            "3": AcademicProposalType.SOCIAL_MEDIA
+        }
+        proposal_type = type_map[type_choice]
+
+        # STEP 3 — GATHER DETAILS
+        console.print("\n[bold cyan]STEP 3 — GATHER DETAILS[/bold cyan]")
+        topic = Prompt.ask("Topic / Idea", default="Interactive Digital Media in Modern Higher Education")
+        purpose = Prompt.ask("Purpose / Objective", default="Assess learner retention and satisfaction across digital instruction modules")
+        audience = Prompt.ask("Target audience", default="Academic Faculty Review Committee")
+        requirements = Prompt.ask("Specific requirements / guidelines (optional)", default="APA 7th edition, 1-year research horizon")
+
+        inp = AcademicProposalInput(
+            academic_level=academic_level,
+            proposal_type=proposal_type,
+            topic=topic,
+            purpose=purpose,
+            target_audience=audience,
+            specific_requirements=requirements
+        )
+
+    # STEP 4 — WRITE THE PROPOSAL
+    console.print(f"\n[bold yellow]Generating 7-Section Academic Proposal ({inp.academic_level.value})...[/bold yellow]")
+    res = agent.generate_academic(inp, provider=provider)
+
+    console.print(f"\n[bold green]✔ Academic Proposal Generated ({res.word_count} words, Provider: {res.provider_used})[/bold green]")
+    console.print(f"[dim]{res.level_insights}[/dim]\n")
+
+    # Display 7 structured sections in formatted panels
+    console.print(Panel(f"[bold white]{res.title}[/bold white]", title="1. Title", border_style="cyan"))
+    console.print(Panel(res.introduction_background, title="2. Introduction / Background", border_style="blue"))
+    console.print(Panel(res.problem_statement, title="3. Problem Statement", border_style="yellow"))
+    
+    objs_formatted = "\n".join([f"• {obj}" for obj in res.objectives])
+    console.print(Panel(objs_formatted, title="4. Objectives", border_style="green"))
+    console.print(Panel(res.methodology_approach, title="5. Methodology or Approach", border_style="magenta"))
+    console.print(Panel(res.expected_outcomes_benefits, title="6. Expected Outcomes / Benefits", border_style="cyan"))
+    console.print(Panel(res.conclusion, title="7. Conclusion", border_style="purple"))
+
+    if Confirm.ask("\nSave full Markdown proposal to 'academic_proposal.md'?", default=True):
+        with open("academic_proposal.md", "w", encoding="utf-8") as f:
+            f.write(res.raw_markdown)
+        console.print("[green]Saved successfully to academic_proposal.md![/green]")
+
+def run_freelance_wizard(agent: ProposalStrategistAgent, provider: str = "offline"):
     console.print("\n[yellow]Choose an option:[/yellow]")
     console.print("  [bold green][1][/bold green] Load Preset Demo Scenario")
     console.print("  [bold green][2][/bold green] Enter Custom Job Details")
-    console.print("  [bold green][3][/bold green] Exit")
 
-    choice = Prompt.ask("Select option", choices=["1", "2", "3"], default="1")
-
-    if choice == "3":
-        console.print("[dim]Goodbye![/dim]")
-        return
+    choice = Prompt.ask("Select option", choices=["1", "2"], default="1")
 
     if choice == "1":
         console.print("\n[bold]Select a Preset Scenario:[/bold]")
@@ -106,30 +178,29 @@ def run_interactive():
             achievements=achievements
         )
 
-    # Provider choice
-    console.print("\n[bold yellow]Select Strategy Engine / Model:[/bold yellow]")
-    console.print("  [1] Offline Strategic Engine (Instant, zero API keys required)")
-    console.print("  [2] Google Gemini (Uses GEMINI_API_KEY if configured)")
-    console.print("  [3] Groq (Uses GROQ_API_KEY if configured)")
-    console.print("  [4] OpenAI (Uses OPENAI_API_KEY if configured)")
-    
-    eng_choice = Prompt.ask("Engine choice", choices=["1", "2", "3", "4"], default="1")
-    provider_map = {"1": "offline", "2": "gemini", "3": "groq", "4": "openai"}
-    provider = provider_map[eng_choice]
-
-    with console.status("[bold green]Analyzing psychology, calibrating platform, and crafting proposals...[/bold green]"):
-        res = agent.generate(inp, provider=provider)
-
-    # Display Results
-    console.print("\n" + "=" * 60 + "\n")
-
-    # Red flag alert
-    if res.red_flag_alert:
+    # Pre-generation Red Flag Scan
+    console.print("\n[bold yellow]Scanning for Job Red Flags...[/bold yellow]")
+    red_flags = agent.check_red_flags(inp.job_description, inp.budget_range)
+    if red_flags.has_flags:
         console.print(Panel(
-            f"[bold red]🚩 RED FLAG ALERT[/bold red]\n\n{res.red_flag_alert}",
+            f"[bold red]RED FLAG ALERT:[/bold red]\n{red_flags.alert_text}\n\n[dim]Reasons: {', '.join(red_flags.reasons)}[/dim]",
             border_style="red",
-            title="Warning: Client Job Risk"
+            title="⚠️ Caution"
         ))
+    else:
+        console.print("[green]No critical red flags detected. Proceeding to generation.[/green]")
+
+    # Generate Proposals
+    console.print("\n[bold yellow]Generating Strategic Proposals...[/bold yellow]")
+    res = agent.generate(inp, provider=provider)
+
+    # Display Variations
+    console.print("\n" + "═"*70)
+    console.print(f"[bold green]PROPOSALS GENERATED ({res.provider_used.upper()})[/bold green]")
+    console.print("═"*70 + "\n")
+
+    if res.red_flag_alert:
+        console.print(Panel(f"[bold red]{res.red_flag_alert}[/bold red]", border_style="red", title="🚩 RED FLAG ALERT"))
 
     # Variation A
     var_a_content = (
@@ -168,17 +239,48 @@ def run_interactive():
             f.write(res.raw_formatted)
         console.print("[green]Saved successfully to latest_proposal.txt![/green]")
 
+def run_interactive():
+    display_banner()
+    agent = ProposalStrategistAgent()
+
+    console.print("\n[yellow]Select Proposal Agent Mode:[/yellow]")
+    console.print("  [bold green][1][/bold green] 💼 Freelance Pitch Strategist ($2M+ Winning Contracts)")
+    console.print("  [bold green][2][/bold green] 🎓 Academic & Professional Proposal Assistant (Bachelor's, Master's, PhD)")
+    console.print("  [bold green][3][/bold green] 🚪 Exit")
+
+    choice = Prompt.ask("Select option", choices=["1", "2", "3"], default="1")
+
+    if choice == "3":
+        console.print("[dim]Goodbye![/dim]")
+        return
+    elif choice == "2":
+        run_academic_wizard(agent, provider="offline")
+    else:
+        run_freelance_wizard(agent, provider="offline")
+
 def main():
-    parser = argparse.ArgumentParser(description="Freelance Proposal Strategist Agent")
-    parser.add_argument("--preset", choices=list(PRESETS.keys()), help="Run specific preset demo (1, 2, 3, or 4)")
+    parser = argparse.ArgumentParser(description="Proposal Strategist & Academic Assistant Agent")
+    parser.add_argument("--preset", choices=list(PRESETS.keys()), help="Run specific freelance preset demo (1, 2, 3, or 4)")
+    parser.add_argument("--academic", action="store_true", help="Launch directly into Academic & Professional Proposal mode")
+    parser.add_argument("--academic-preset", choices=list(ACADEMIC_PRESETS.keys()), help="Run specific academic preset demo (1, 2, or 3)")
     parser.add_argument("--provider", default="offline", choices=["offline", "gemini", "groq", "openai", "ollama"])
     args = parser.parse_args()
 
-    if args.preset:
+    agent = ProposalStrategistAgent()
+
+    if args.academic_preset:
+        display_banner()
+        preset = ACADEMIC_PRESETS[args.academic_preset]
+        console.print(f"[bold green]Running Academic Preset {args.academic_preset}: {preset['title']}[/bold green]\n")
+        res = agent.generate_academic(preset["input"], provider=args.provider)
+        console.print(res.raw_markdown)
+    elif args.academic:
+        display_banner()
+        run_academic_wizard(agent, provider=args.provider)
+    elif args.preset:
         display_banner()
         preset = PRESETS[args.preset]
-        console.print(f"[bold green]Running Preset {args.preset}: {preset['title']}[/bold green]\n")
-        agent = ProposalStrategistAgent()
+        console.print(f"[bold green]Running Freelance Preset {args.preset}: {preset['title']}[/bold green]\n")
         res = agent.generate(preset["input"], provider=args.provider)
         console.print(res.raw_formatted)
     else:
